@@ -54,14 +54,17 @@ union DataGenerationOutputFormat {
   Evaluation: "Evaluation",
 }
 
-@doc("Seed data source types.")
+@doc("File types.")
 @added(Versions.v2025_05_15_preview)
 @removed(Versions.v1)
-union DataGenerationSeedDataSourceType {
+union DataFileType {
   string,
 
-  @doc("Seed data comes from a file previously uploaded.")
+  @doc("Azure OpenAI file.")
   file: "file",
+
+  @doc("Foundry dataset.")
+  dataset: "dataset",
 }
 
 @doc("A seed data source entry.")
@@ -69,7 +72,7 @@ union DataGenerationSeedDataSourceType {
 @removed(Versions.v1)
 model DataGenerationSeedDataSource {
   @doc("The seed data source type.")
-  type: DataGenerationSeedDataSourceType;
+  type: DataFileType;
 
   @doc("The identifier of the file when type is 'file'.")
   file_id: string;
@@ -85,16 +88,49 @@ model DataGenerationJobBaseOptions {
   @doc("Desired output format for generated data.")
   output_format: DataGenerationOutputFormat;
 
-  @doc("Prefix applied to any output file(s) produced.")
+  @doc("Desired file type for any output file(s) produced. Either dataset or Azure OpenAI file. Defaults to file if not provided.")
+  output_file_type?: DataFileType;
+
+  @doc("Prefix applied to any output file(s) produced. Required if output_file_type is 'file'. Ignored if output_file_type is 'dataset'. Applicable only when output format is not 'Evaluation' since evaluation format creates dataset output files.")
   output_file_prefix?: string;
+
+  @doc("Name of the output dataset to create. If not specified, a default name will be generated. Applicable only when output_file_type is 'Dataset'. If dataset with same name already exists then tries to create a new version of the dataset with the generated data.")
+  // This is kind of duplicate of output_file_prefix should merge them as part of Api public preview review.
+  output_dataset_name?: string;
+}
+
+union DataGenerationOutputFileType{
+  string,
+
+  @doc("Output file(s) is created as Azure OpenAI files")
+  AzureOpenAIFile: "AzureOpenAIFile",
+
+  @doc("Output file(s) is created as dataset asset file.")
+  Dataset: "Dataset",
+}
+
+@doc("Options specific to evaluation data generation, applicable when output format is 'Evaluation'.")
+@added(Versions.v2025_05_15_preview)
+@removed(Versions.v1)
+model EvaluationItemGenerationOptions {
+  @doc("Prompt used by model for data generation.")
+  prompt?: string;
+  
+  @doc("Optional agent name to use for data generation. Used for fetching agent metadata used for evaluation data generation.")
+  agent_name?: string;
+
+  @doc("Optional agent version to use for data generation. Used for fetching agent metadata used for evaluation data generation.")
+  agent_version?: string;
 }
 
 @doc("Options specific to a QuestionAnswers data generation job.")
 @added(Versions.v2025_05_15_preview)
 @removed(Versions.v1)
 model QuestionAnswersDataGenerationJobOptions extends DataGenerationJobBaseOptions {
-  @doc("Number of conversational turns to simulate for each generated sample.")
+  @doc("Number of conversational turns to simulate for each generated sample. Applicable only for fine-tuning output formats to create multi-turn dialogue samples.")
   num_turns?: int32;
+  @doc("Data generation options specific to evaluation output format.")
+  evaluation_item_generation_options?: EvaluationItemGenerationOptions;
 }
 
 @doc("Options specific to a MultipleChoiceQuestions data generation job.")
